@@ -67,9 +67,9 @@ void eventadd(int efd, int events, struct myevent_s *ev)
         printf("event add failed [fd=%d], events[%d]\n", ev->fd, events);
     else
         printf("event add OK [fd=%d], op=%d, events[%0X]\n", ev->fd, op, events);
-    
+
     return ;
-    
+
 }
 
 void eventdel(int efd, struct myevent_s *ev)
@@ -95,8 +95,8 @@ void recvdata(int fd, int events, void *arg)
         ev->buf[len] = '\0';
         printf("%d\n", len);
         printf("C[%d]:%s\n", fd, ev->buf);
-        eventset(ev, fd, senddata, ev); 
-        eventadd(g_epfd, EPOLLOUT, ev); 
+        eventset(ev, fd, senddata, ev);
+        eventadd(g_epfd, EPOLLOUT, ev);
         printf("recv end\n");
     } else {
         close(ev->fd);
@@ -110,12 +110,12 @@ void senddata(int fd, int events, void *arg)
     int len;
     printf("send stage ev->len: %d\n", ev->len);
 
-    len = send(fd, ev->buf, ev->len, 0); 
-    
+    len = send(fd, ev->buf, ev->len, 0);
+
     if (len>0){
         eventdel(g_epfd, ev);
-        eventset(ev, fd, recvdata, ev); 
-        eventadd(g_epfd, EPOLLIN, ev); 
+        eventset(ev, fd, recvdata, ev);
+        eventadd(g_epfd, EPOLLIN, ev);
     } else {
         printf("hereh?\n");
         close(ev->fd);
@@ -137,16 +137,16 @@ void acceptcoon(int lfd, int events, void* arg)
     }
     fcntl(cfd, F_SETFL, O_NONBLOCK);
 
-    eventset(&g_events[i], cfd, recvdata, &g_events[i]);   
-    eventadd(g_epfd, EPOLLIN, &g_events[i]);  
+    eventset(&g_events[i], cfd, recvdata, &g_events[i]);
+    eventadd(g_epfd, EPOLLIN, &g_events[i]);
 }
 
 void initlistensocket(int epfd, short port)
 {
-    int lfd;
-    lfd = socket(AF_INET,SOCK_STREAM, 0);
-    fcntl(lfd, F_SETFL, O_NONBLOCK);
-    struct sockaddr_in sin;
+  int lfd;
+  lfd = socket(AF_INET,SOCK_STREAM, 0);
+  fcntl(lfd, F_SETFL, O_NONBLOCK);
+  struct sockaddr_in sin;
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = INADDR_ANY;
@@ -154,15 +154,15 @@ void initlistensocket(int epfd, short port)
 	bind(lfd, (struct sockaddr *)&sin, sizeof(sin));
 	listen(lfd, 20);
 
-    eventset(&g_events[MAX_EVENTS], lfd, acceptcoon, &g_events[MAX_EVENTS]);
-    eventadd(g_epfd, POLLIN, &g_events[MAX_EVENTS]);
+  eventset(&g_events[MAX_EVENTS], lfd, acceptcoon, &g_events[MAX_EVENTS]);
+  eventadd(g_epfd, POLLIN, &g_events[MAX_EVENTS]);
 
     return ;
 }
 
 int main(int argc, char *argv[])
 {
-    g_epfd = epoll_create(MAX_EVENTS+1);
+    int g_epfd = epoll_create(MAX_EVENTS+1);
     initlistensocket(g_epfd, SERV_PORT);
 
     struct epoll_event events[MAX_EVENTS+1];
@@ -171,19 +171,7 @@ int main(int argc, char *argv[])
 
     while(1){
         int nfd = epoll_wait(g_epfd, events, MAX_EVENTS+1, 1000);
-        
 
-        // for (i = 0; i < nfd; i++) {
-        //     /*使用自定义结构体myevent_s类型指针, 接收 联合体data的void *ptr成员*/
-        //     struct myevent_s *ev = (struct myevent_s *)events[i].data.ptr;  
-        //     if ((events[i].events & EPOLLIN) && (ev->events & EPOLLIN))
-        //         ev->call_back(ev->fd, events[i].events, ev->arg);
-            
-        //     if ((events[i].events & EPOLLOUT) && (ev->events & EPOLLOUT))
-        //         ev->call_back(ev->fd, events[i].events, ev->arg);
-
-        // }
-        
         for (i = 0; i < nfd; i++) {
             struct myevent_s *ev = (struct myevent_s *)events[i].data.ptr;
             // printf("exeing ------> [fd=%d], events[%0X]\n", ev->fd, ev->events);
