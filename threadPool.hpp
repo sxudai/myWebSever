@@ -16,6 +16,7 @@
 #define threadManageStep 2
 #define maxThreadNum 20
 #define minThreadNum 3
+#define MAXTASK 1024
 
 class threadPool {
 private:

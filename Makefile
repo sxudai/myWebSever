@@ -1,2 +1,2 @@
-sever: sever.cpp
-	g++ sever.cpp -lpthread
+sever: sever.cpp util.cpp
+	g++ sever.cpp util.cpp request.cpp -lpthread
