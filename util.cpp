@@ -8,26 +8,27 @@
 #include <errno.h>
 #include <string.h>
 
-// 获取一行 \r\n 结尾的数据 
+// 获取一行以\n或者\r\n 结尾的数据，返回数据不带\n
 int get_line(int cfd, char *buf, int size)
 {
     int i = 0;
     char c = '\0';
     int n;
-    while ((i < size-1) && (c != '\n')) {  
+    while ((i < size-1) && (c != '\n')) {
         n = recv(cfd, &c, 1, 0);
-        if (n > 0) {     
-            if (c == '\r') {            
+        if (n > 0) {
+            if (c == '\r') {
                 n = recv(cfd, &c, 1, MSG_PEEK);
                 if ((n > 0) && (c == '\n')) {              
                     recv(cfd, &c, 1, 0);
-                } else {                       
+                } else {
                     c = '\n';
                 }
             }
+            if(c == '\n') break;
             buf[i] = c;
             i++;
-        } else {      
+        } else {
             c = '\n';
         }
     }
