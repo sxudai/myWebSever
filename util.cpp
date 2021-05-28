@@ -7,6 +7,12 @@
 #include <signal.h>
 #include <errno.h>
 #include <string.h>
+#include <iostream>
+#include <chrono>
+#include <thread>
+
+using std::cout;
+using std::endl;
 
 // 获取一行以\n或者\r\n 结尾的数据，返回数据不带\n
 int get_line(int cfd, char *buf, int size)
@@ -16,6 +22,7 @@ int get_line(int cfd, char *buf, int size)
     int n;
     while ((i < size-1) && (c != '\n')) {
         n = recv(cfd, &c, 1, 0);
+        // cout << n << endl;
         if (n > 0) {
             if (c == '\r') {
                 n = recv(cfd, &c, 1, MSG_PEEK);
@@ -29,13 +36,14 @@ int get_line(int cfd, char *buf, int size)
             buf[i] = c;
             i++;
         } else {
+            // printf("Error no.%d: %s\n", errno, strerror(errno));
             c = '\n';
         }
     }
     buf[i] = '\0';
     
-    if (-1 == n)
-    	i = n;
+    if (-1 == n || 0 == n)
+    	i = -1;
 
     return i;
 }
@@ -57,6 +65,13 @@ void handle_for_sigpipe()
     memset(&sa, '\0', sizeof(sa));
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
-    if(sigaction(SIGPIPE, &sa, 0))
-        return;
+    sigaction(SIGPIPE, &sa, 0);
+}
+
+void handle_for_sigpipe(int signo)
+{
+    sigset_t signal_mask;
+    sigemptyset(&signal_mask);
+    sigaddset(&signal_mask, signo);
+    pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
 }

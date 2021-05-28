@@ -15,8 +15,8 @@
 
 #include <iostream>
 
-
 #include "util.h"
+#include "timer.h"
 #include "request.h"
 #include "threadPool.hpp"
 
@@ -28,14 +28,13 @@
 using std::cout;
 using std::endl;
 
-//todo: 长短连接
-
 uniRequest* uniRequestLfd;
+TimerManager timerManag;
 
 int handle_request(void *inputRequest){
     int res = 1;
     uniRequest * request = static_cast<uniRequest*>(inputRequest);
-    cout << request->get_lfd() <<' ' << request->get_cfd() << endl;
+    // cout << "lfd: " << request->get_lfd() << "cfd: " << request->get_cfd() << endl;
     if(request->get_lfd() == request->get_cfd()){
         res = request->acceptLink();
     } else {
@@ -84,7 +83,7 @@ int init_lfd(int efd){
 
 int main(int argc, char *argv[]){
     //修改sigpipe信号处理方式
-    handle_for_sigpipe();
+    handle_for_sigpipe(SIGPIPE);
 
     //初始化一个线程池
     threadPool pool(3);
@@ -98,7 +97,7 @@ int main(int argc, char *argv[]){
     int lfd = init_lfd(efd);
     if(lfd == -1) cout << "lfd init error" << endl;
 
-    cout << "lfd: " << lfd << endl;
+    // cout << "lfd: " << lfd << endl;
 
     while(true){
         // 等待所监控文件描述符上有事件的产生
@@ -111,8 +110,9 @@ int main(int argc, char *argv[]){
             if(!(eps[i].events & EPOLLIN)) continue;
             std::future<int> ret = pool.submit(handle_request, static_cast<void *>(eps[i].data.ptr));
         }
+        timerManag.handle_expired_event();
     }
-
+    
     close(lfd);
     close(efd);
 

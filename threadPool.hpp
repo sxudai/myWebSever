@@ -1,5 +1,3 @@
-#pragma once
-
 #include <thread>
 #include <condition_variable>
 #include <mutex>
@@ -92,10 +90,13 @@ public:
 
     void workerCreate(){
         // 总线程数小于最大线程数，创建线程数小于threadManageStep
-        for(int j = 0; liveThread < maxThreadNum, j < threadManageStep; ++liveThread, ++j){
+        for(int j = 0; liveThread < maxThreadNum && j < threadManageStep; ++liveThread, ++j){
             // std::cout << "creating new thread: " << j << std::endl;
-            workers_.emplace_back(this);
-            ++liveThread;
+            {
+                std::unique_lock<std::mutex> ul(mtx_);
+                workers_.emplace_back(this);
+            }
+            // ++liveThread;
         }
     }
 
@@ -111,7 +112,10 @@ public:
                 iter = workers_.begin();
             } else if((*iter).joinable()){
                 (*iter).join();
-                iter = workers_.erase(iter);
+                {
+                    std::unique_lock<std::mutex> ul(mtx_);
+                    iter = workers_.erase(iter);
+                }
                 --i;
                 // std::cout << "remain thread to joinning: " << i << std::endl;
             } else {
