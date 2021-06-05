@@ -5,15 +5,7 @@
 #include <memory>
 
 #include "timer.h"
-
-namespace dsx{
-    enum myErrorNum{
-        OK=0,
-        invalidDefaultConstructor=1,
-        anaRequestErrCfdClose=2,
-        httpGetErr404=3
-    };
-}
+#include "dsx.h"
 
 class TimerNode;
 
@@ -30,7 +22,6 @@ public:
     int linkTimer(TimerNode * _timer);
 
     int epollIn();
-    void analysis_request();
     void http_request();
     void http_get();
     void http_post();
@@ -63,4 +54,20 @@ private:
 
     std::unordered_map<std::string, std::string> m_heads;
     TimerNode* m_timer;
+
+public:
+    HTTP_CODE parse_content();
+    LINE_STATUS parse_line();
+    HTTP_CODE parse_headers( char* szTemp );
+    HTTP_CODE parse_requestline( char* szTemp);
+    HTTP_CODE recv_body( char* szTemp);
+    CHECK_STATE check_checkstate();
+    void set_CHECK_STATE_REQUESTLINE();
+    
+private:
+    char buffer[BUFFER_SIZE];
+    int read_index = 0;
+    int checked_index = 0;
+    int start_line = 0;
+    CHECK_STATE checkstate = CHECK_STATE_INIT;
 };
