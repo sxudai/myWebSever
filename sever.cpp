@@ -32,12 +32,15 @@ uniRequest* uniRequestLfd;
 TimerManager timerManag;
 
 int handle_request(void *inputRequest){
+    printf("handle_request \n");
     int res = 1;
     uniRequest * request = static_cast<uniRequest*>(inputRequest);
-    // cout << "lfd: " << request->get_lfd() << "cfd: " << request->get_cfd() << endl;
+    cout << "lfd: " << request->get_lfd() << "cfd: " << request->get_cfd() << endl;
     if(request->get_lfd() == request->get_cfd()){
         res = request->acceptLink();
     } else {
+        // 先分离timer
+        request->seperateTimer();
         res = request->epollIn();
     }
     return res;
@@ -108,14 +111,23 @@ int main(int argc, char *argv[]){
         for(int i=0; i<nready; ++i){
             // 暂时只监听读事件，虽然不会出现写事件，但是以防万一异常
             if(!(eps[i].events & EPOLLIN)) continue;
+            uniRequest * request = static_cast<uniRequest*>(eps[i].data.ptr);
+            printf("sever, set_CHECK_STATE_REQUESTLINE, req point is %p\n", request);
+            request->set_CHECK_STATE_REQUESTLINE();
+            printf("submit job to thread pool\n");
             std::future<int> ret = pool.submit(handle_request, static_cast<void *>(eps[i].data.ptr));
+            printf("job submited\n");
         }
+        // std::this_thread::sleep_for(std::chrono::seconds(2));
+        printf("main, start to handle_expired_event()\n");
         timerManag.handle_expired_event();
+        printf("main, ebd of handle_expired_event()\n");
     }
     
     close(lfd);
     close(efd);
 
+    printf("main, free\n");
     delete uniRequestLfd;
 
     return 0;
