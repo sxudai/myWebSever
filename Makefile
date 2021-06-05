@@ -12,4 +12,5 @@ gdbsever: $(obj)
 $(obj):%.o:%.cpp
 	g++ -c $< -o $@ 
 
-clean:;rm -rf *.o
+clean:
+	rm -rf *.o
