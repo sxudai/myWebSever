@@ -11,9 +11,6 @@
 #include <chrono>
 #include <thread>
 
-using std::cout;
-using std::endl;
-
 // 获取一行以\n或者\r\n 结尾的数据，返回数据不带\n
 int get_line(int cfd, char *buf, int size)
 {
@@ -22,7 +19,6 @@ int get_line(int cfd, char *buf, int size)
     int n;
     while ((i < size-1) && (c != '\n')) {
         n = recv(cfd, &c, 1, 0);
-        // cout << n << endl;
         if (n > 0) {
             if (c == '\r') {
                 n = recv(cfd, &c, 1, MSG_PEEK);
