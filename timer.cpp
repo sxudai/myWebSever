@@ -10,6 +10,7 @@
 
 #include "timer.h"
 #include "request.h"
+#include "dsx.h"
 
 using std::cout;
 using std::endl;
@@ -26,9 +27,14 @@ TimerNode::TimerNode(uniRequest*_request_data, int timeout):
 }
 TimerNode::~TimerNode(){
     // timer超时,先断开连接
-    // if(request_data){
-    //     request_data->disconnect();
-    // }
+    if(request_data) {
+        request_data->seperateTimer();
+        printf("TimerNode::~TimerNode(), request_data seperateTimer\n");
+    }
+    if(request_data) cout << "request_data->check_checkstate(): " << request_data->check_checkstate() << endl;
+    if(request_data && request_data->check_checkstate() == CHECK_STATE_INIT){
+        request_data->disconnect();
+    }
 }
 
 //更新超时时间
@@ -50,7 +56,7 @@ bool TimerNode::isvalid(){
 
 // 清除请求，代表request和timer分离
 void TimerNode::clearReq(){
-    // cout << "func clearReq, timer this ptr: " << this << endl;
+    cout << "func clearReq, timer this ptr: " << this << endl;
     request_data = nullptr;
     deleted = true;  // 毁灭吧
 }
@@ -67,6 +73,7 @@ TimerManager::~TimerManager(){
     while(!TimerNodeQueue.empty()){
         TimerNode *cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
         cout << "func TimerManager::~TimerManager(), timer ptr: " << cur << endl;
+        printf("TimerManager::~TimerManager() free\n");
         delete cur;
     }
 }
@@ -80,12 +87,23 @@ void TimerManager::addTimer(uniRequest * request_data, int timeout){
     request_data->linkTimer(new_timer);
 }
 void TimerManager::handle_expired_event(){
-    // 理论上来说是不要加锁的，但是以防万一
+    // 防止一边加timer一边释放timer
     std::lock_guard<std::mutex> ul(mtx);
     while(!TimerNodeQueue.empty()){
-        if(!TimerNodeQueue.top()->isDeleted() || TimerNodeQueue.top()->isvalid()) break;
-        TimerNode *cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
-        cout << "func TimerManager::handle_expired_event(), timer ptr: " << cur << endl;
-        delete cur;
+        printf("TimerManager::handle_expired_event(), top point is %p. state:\n", TimerNodeQueue.top());
+        printf("TimerNodeQueue.top()->isDeleted(): %d, TimerNodeQueue.top()->isvalid(): %d\n", TimerNodeQueue.top()->isDeleted(), TimerNodeQueue.top()->isvalid());
+        if(TimerNodeQueue.top()->isDeleted() || !TimerNodeQueue.top()->isvalid()){
+            TimerNode *cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
+            cout << "func TimerManager::handle_expired_event(), timer ptr: " << cur << endl;
+            printf("TimerManager::handle_expired_event() free\n");
+            delete cur;
+        } else {
+            break;
+        }
+
+        // if(!TimerNodeQueue.top()->isDeleted() || TimerNodeQueue.top()->isvalid()) break;
+        // TimerNode *cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
+        // cout << "func TimerManager::handle_expired_event(), timer ptr: " << cur << endl;
+        // delete cur;
     }
 }
