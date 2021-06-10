@@ -9,7 +9,15 @@
 
 class TimerNode;
 
-class uniRequest{
+// typedef std::shared_ptr<uniRequest> SP_ReqData;
+// typedef std::shared_ptr<TimerNode> SP_TimerNode;
+// typedef std::weak_ptr<uniRequest> WP_ReqData;
+// typedef std::weak_ptr<TimerNode> WP_TimerNode;
+
+class uniRequest: public std::enable_shared_from_this<uniRequest>{
+public:
+    typedef std::shared_ptr<TimerNode> SP_TimerNode;
+    typedef std::weak_ptr<TimerNode> WP_TimerNode;
 public:
     uniRequest();
     uniRequest(int _lfd, int _cfd, int _efd);
@@ -19,7 +27,7 @@ public:
     ~uniRequest();
 
     int acceptLink();
-    int linkTimer(TimerNode * _timer);
+    int linkTimer(SP_TimerNode _timer);
 
     int epollIn();
     void http_request();
@@ -37,7 +45,7 @@ public:
     int get_efd();
     int get_cfd();
     int get_lfd();
-    TimerNode* get_timer();
+    SP_TimerNode get_timer();
 
 private:
     int m_lfd;
@@ -53,7 +61,7 @@ private:
     dsx::myErrorNum m_error;
 
     std::unordered_map<std::string, std::string> m_heads;
-    TimerNode* m_timer;
+    WP_TimerNode m_timer;
 
 public:
     HTTP_CODE parse_content();

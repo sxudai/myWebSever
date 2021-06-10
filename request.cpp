@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <chrono>
 
+#include "fd2UniRequest.h"
 #include "util.h"
 #include "timer.h"
 #include "request.h"
@@ -37,14 +38,14 @@ uniRequest::uniRequest(int _lfd, int _cfd, int _efd, int _timeout): m_lfd(_lfd),
 uniRequest::uniRequest(): m_lfd(0), m_cfd(0), m_efd(0), m_error(dsx::invalidDefaultConstructor){}
 uniRequest::~uniRequest(){
 	// std::this_thread::sleep_for(std::chrono::seconds(240));
-	close(m_cfd);
-	printf("uniRequest::~uniRequest(), cfd closed, this point is %p\n", this);
+	// close(m_cfd);
+	// printf("uniRequest::~uniRequest(), cfd closed, this point is %p\n", this);
 }
 
 int uniRequest::get_efd(){return m_efd;}
 int uniRequest::get_cfd(){return m_cfd;}
 int uniRequest::get_lfd(){return m_lfd;}
-TimerNode* uniRequest::get_timer(){return m_timer;}
+uniRequest::SP_TimerNode uniRequest::get_timer(){return m_timer.lock();}
 
 int uniRequest::acceptLink(){
     int res;
@@ -64,24 +65,30 @@ int uniRequest::acceptLink(){
 				printf("errno is: %d\n", errno);
 				break;
 			}
+		} else if(cfd > OPEN_MAX+1){
+			close(cfd);
+			printf("too many client, undingable!!!!, give up connection\n");
+			return -1;
 		}
 		
 		res = setSocketNonBlocking(cfd);
 		if(res < 0) {
-			printf("uniRequest::acceptLink(), %d: set non block error\n", m_cfd);
+			printf("uniRequest::acceptLink(), %d: set non block error\n", cfd);
 			break;
 		}
 
 		// 新request
-		uniRequest *newreq = new uniRequest(m_lfd, cfd, m_efd);
+		std::shared_ptr<uniRequest> newreq = std::make_shared<uniRequest>(m_lfd, cfd, m_efd);
 		timerManag.addTimer(newreq, m_timeout);
-		cout << "func uniRequest::acceptLink(), timer ptr: " << newreq->m_timer << endl;
-		cout << "func uniRequest::acceptLink(), newreq ptr: " << newreq << endl;
+		printf("func uniRequest::acceptLink(), timer ptr: %p\n", (newreq->get_timer()).get());
+		printf("func uniRequest::acceptLink(), newreq ptr: %p\n", newreq.get());
+		// 加入fd2req
+		fd2UniRequest::setUniRequest(cfd, newreq);
 
 		// 新cfd挂上树
 		struct epoll_event temp;
 		temp.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-		temp.data.ptr = static_cast<void *>(newreq);
+		temp.data.fd = cfd;
 		res = epoll_ctl(m_efd, EPOLL_CTL_ADD, cfd, &temp);
 	}
 	printf("accept link end\n");
@@ -89,7 +96,7 @@ int uniRequest::acceptLink(){
     return 0;
 }
 
-int uniRequest::linkTimer(TimerNode *_timer){
+int uniRequest::linkTimer(SP_TimerNode _timer){
 	m_timer = _timer;
 }
 
@@ -109,10 +116,13 @@ void uniRequest::resetReq(){
 }
 
 void uniRequest::seperateTimer(){
-	cout << "func uniRequest::seperateTimer(), timer ptr: " << m_timer << endl;
-	cout << "func uniRequest::seperateTimer(), this ptr: " << this << endl;
-	if(m_timer) m_timer->clearReq();
-	m_timer = nullptr;
+	SP_TimerNode req_timer = m_timer.lock();
+	if(req_timer) {
+		printf("func uniRequest::seperateTimer(), timer ptr: %p\n", req_timer.get());
+		printf("func uniRequest::seperateTimer(), this ptr: %p\n", this);
+		req_timer->clearReq();
+	}
+	m_timer.reset();
 }
 
 int uniRequest::epollIn(){
@@ -120,6 +130,7 @@ int uniRequest::epollIn(){
 	int data_read = 0;
 	printf("epollIn\n");
 	while(true) {
+		int no_req_cnt = TRY_READ;
 		int try_to_read = TRY_READ;
 		while(try_to_read){
 			data_read = recv( m_cfd, buffer + read_index, BUFFER_SIZE - read_index, 0 );
@@ -145,6 +156,9 @@ int uniRequest::epollIn(){
         HTTP_CODE result = parse_content();
         // 读的不完整，接着读
 		if( result == NO_REQUEST ) {
+			--no_req_cnt;
+			// 读老半天了还没读到东西，直接毁灭吧
+			if(no_req_cnt == 0) return disconnect();
 			continue;
 		} else if(result == GET_REQUEST) {
 			// 报文分析处理完毕
@@ -155,8 +169,8 @@ int uniRequest::epollIn(){
 			return disconnect();
 		}
     }
-	printf("heads are:\n");
-	for(auto & p: m_heads) cout << p.first << ": " << p.second << endl;
+	// printf("heads are:\n");
+	// for(auto & p: m_heads) cout << p.first << ": " << p.second << endl;
 
 	http_request();
 	handle_connect();
@@ -359,15 +373,15 @@ int uniRequest::handle_connect(){
 	if(m_heads.count("Connection") && m_heads["Connection"] == "keep-alive"){
 		printf("uniRequest::handle_connect() keep-alive\n");
 		// 先添加timer
-		timerManag.addTimer(this, m_timeout);
+		timerManag.addTimer(shared_from_this(), m_timeout);
 		resetReq();
 		// epoll oneshot， cfd重新上树
 		struct epoll_event temp;
 		temp.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-		temp.data.ptr = static_cast<void *>(this);
+		temp.data.fd = m_cfd;
 		int res = epoll_ctl(m_efd, EPOLL_CTL_MOD, m_cfd, &temp);
 		printf("res is: %d\n", res);
-		cout << "new timer is：" << m_timer << endl;
+		printf("new timer is：%p\n", m_timer.lock().get());
 		return 1;
 	}
 	printf("uniRequest::handle_connect() disconnect\n");
@@ -470,14 +484,21 @@ void uniRequest::send_file(const char *file){
 
 int uniRequest::disconnect(){
 	int returnVal=0;
+	/*
+	先删除（reset）shared_ptr
+	再把cfd从efd上摘下来
+	最后再close(cfd)
+	保证安全
+	*/
+	fd2UniRequest::deleteUniRequest(m_cfd);
+	
 	int res = epoll_ctl(m_efd, EPOLL_CTL_DEL, m_cfd, NULL);
 	printf("client[%d] closed connection\n", m_cfd);
 	if(m_error != dsx::OK) {
 		cout << "error: " << m_error << endl;
 		returnVal=-1;
 	}
-	printf("uniRequest::disconnect() free\n");
-	delete this;
+	close(m_cfd);
 	return returnVal;
 }
 

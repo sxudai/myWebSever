@@ -1,5 +1,15 @@
 #pragma once
 
+#define BUFFER_SIZE 4096
+
+// 用于非阻塞返回-1时多尝试几次
+#define TRY_READ 1000;
+
+#define SERV_PORT 8000
+#define OPEN_MAX 65535
+#define THREADNUM 5
+#define BUFLEN 4096
+
 namespace dsx{
     enum myErrorNum{
         OK=0,
@@ -8,11 +18,6 @@ namespace dsx{
         httpGetErr404=3
     };
 }
-
-#define BUFFER_SIZE 4096
-
-// 用于非阻塞返回-1时多尝试几次
-#define TRY_READ 10000;
 
 enum CHECK_STATE { 
     CHECK_STATE_INIT = 0,

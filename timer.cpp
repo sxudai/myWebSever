@@ -15,7 +15,7 @@
 using std::cout;
 using std::endl;
 
-TimerNode::TimerNode(uniRequest*_request_data, int timeout):
+TimerNode::TimerNode(SP_ReqData _request_data, int timeout):
     request_data(_request_data),
     deleted(false)
 {
@@ -25,15 +25,18 @@ TimerNode::TimerNode(uniRequest*_request_data, int timeout):
     expired_time = ((now.tv_sec * 1000) + (now.tv_usec / 1000)) + timeout;
     // cout << "curr time: " << ((now.tv_sec * 1000) + (now.tv_usec / 1000)) << "expired_time: " << expired_time << endl;
 }
+
+
 TimerNode::~TimerNode(){
     // timer超时,先断开连接
-    if(request_data) {
-        request_data->seperateTimer();
+    SP_ReqData req = request_data.lock();
+    if(req) {
+        req->seperateTimer();
         printf("TimerNode::~TimerNode(), request_data seperateTimer\n");
-    }
-    if(request_data) cout << "request_data->check_checkstate(): " << request_data->check_checkstate() << endl;
-    if(request_data && request_data->check_checkstate() == CHECK_STATE_INIT){
-        request_data->disconnect();
+        if(req->check_checkstate() == CHECK_STATE_INIT) {
+            printf("TimerNode::~TimerNode(), request_data timeout, disconnect\n");
+            req->disconnect();
+        }
     }
 }
 
@@ -56,8 +59,8 @@ bool TimerNode::isvalid(){
 
 // 清除请求，代表request和timer分离
 void TimerNode::clearReq(){
-    cout << "func clearReq, timer this ptr: " << this << endl;
-    request_data = nullptr;
+    printf("func clearReq, timer this ptr: %p", this);
+    request_data.reset();
     deleted = true;  // 毁灭吧
 }
 
@@ -71,15 +74,13 @@ TimerManager::TimerManager(){}
 TimerManager::~TimerManager(){
     //释放节点
     while(!TimerNodeQueue.empty()){
-        TimerNode *cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
-        cout << "func TimerManager::~TimerManager(), timer ptr: " << cur << endl;
-        printf("TimerManager::~TimerManager() free\n");
-        delete cur;
+        SP_TimerNode cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
+        printf("func TimerManager::~TimerManager(), timer ptr: %p", cur.get());
     }
 }
 
-void TimerManager::addTimer(uniRequest * request_data, int timeout){
-    TimerNode *new_timer = new TimerNode(request_data, timeout);
+void TimerManager::addTimer(SP_ReqData request_data, int timeout){
+    SP_TimerNode new_timer = std::make_shared<TimerNode>(request_data, timeout);
     {
         std::lock_guard<std::mutex> ul(mtx);
         TimerNodeQueue.push(new_timer);
@@ -90,20 +91,13 @@ void TimerManager::handle_expired_event(){
     // 防止一边加timer一边释放timer
     std::lock_guard<std::mutex> ul(mtx);
     while(!TimerNodeQueue.empty()){
-        printf("TimerManager::handle_expired_event(), top point is %p. state:\n", TimerNodeQueue.top());
+        printf("TimerManager::handle_expired_event(), top point is %p. state:\n", TimerNodeQueue.top().get());
         printf("TimerNodeQueue.top()->isDeleted(): %d, TimerNodeQueue.top()->isvalid(): %d\n", TimerNodeQueue.top()->isDeleted(), TimerNodeQueue.top()->isvalid());
         if(TimerNodeQueue.top()->isDeleted() || !TimerNodeQueue.top()->isvalid()){
-            TimerNode *cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
-            cout << "func TimerManager::handle_expired_event(), timer ptr: " << cur << endl;
-            printf("TimerManager::handle_expired_event() free\n");
-            delete cur;
+            SP_TimerNode cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
+            printf("func TimerManager::handle_expired_event(), timer ptr: %p", cur.get());
         } else {
             break;
         }
-
-        // if(!TimerNodeQueue.top()->isDeleted() || TimerNodeQueue.top()->isvalid()) break;
-        // TimerNode *cur = TimerNodeQueue.top(); TimerNodeQueue.pop();
-        // cout << "func TimerManager::handle_expired_event(), timer ptr: " << cur << endl;
-        // delete cur;
     }
 }

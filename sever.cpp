@@ -15,27 +15,30 @@
 
 #include <iostream>
 
+#include "dsx.h"
 #include "util.h"
 #include "timer.h"
 #include "request.h"
 #include "threadPool.hpp"
-
-#define SERV_PORT 8000
-#define OPEN_MAX 65535
-#define THREADNUM 5
-#define BUFLEN 4096
+#include "fd2UniRequest.h"
 
 using std::cout;
 using std::endl;
 
-uniRequest* uniRequestLfd;
+int lfd;
+int efd;
 TimerManager timerManag;
 
-int handle_request(void *inputRequest){
+typedef std::shared_ptr<uniRequest> SP_ReqData;
+typedef std::weak_ptr<uniRequest> WP_ReqData;
+typedef std::shared_ptr<TimerNode> SP_TimerNode;
+typedef std::weak_ptr<TimerNode> WP_TimerNode;
+
+int handle_request(SP_ReqData request){
     printf("handle_request \n");
     int res = 1;
-    uniRequest * request = static_cast<uniRequest*>(inputRequest);
-    cout << "lfd: " << request->get_lfd() << "cfd: " << request->get_cfd() << endl;
+    printf("lfd: %d, cfd: %d\n", request->get_lfd(), request->get_cfd());
+
     if(request->get_lfd() == request->get_cfd()){
         res = request->acceptLink();
     } else {
@@ -46,12 +49,12 @@ int handle_request(void *inputRequest){
     return res;
 }
 
-int init_lfd(int efd){
+void init_lfd(){
     //用于接收返回值
     int res;
      
     // 创建监听fd
-    int lfd = socket(AF_INET, SOCK_STREAM, 0);
+    lfd = socket(AF_INET, SOCK_STREAM, 0);
     setSocketNonBlocking(lfd);
 
     // 设置servaddr；
@@ -67,21 +70,27 @@ int init_lfd(int efd){
 
     // 绑定端口
     res = bind(lfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-    if(res < 0) cout << "bind error" << endl;
+    if(res < 0) {
+        lfd = -1;
+        printf("lfd bind error\n");
+        return;
+    }
     // listen，设定连接上限
     listen(lfd, OPEN_MAX);
+
+    // lfd加入fd2UniRequest
+    fd2UniRequest::setUniRequest(lfd, std::make_shared<uniRequest>(lfd, lfd, efd));
 
     // 把lfd挂上树
     struct epoll_event temp;
     temp.events = EPOLLIN | EPOLLET;
-    // todo 正确销毁了吗？
-    //应该不能换成共享指针
-    uniRequestLfd = new uniRequest(lfd, lfd, efd);
-    temp.data.ptr = static_cast<void *>(uniRequestLfd);
+    temp.data.fd = lfd;
     res = epoll_ctl(efd, EPOLL_CTL_ADD, lfd, &temp);
-    if(res == -1) perror("lfd epoll_ctl add error");
-
-    return lfd;
+    if(res == -1) {
+        printf("lfd epoll_ctl add error\n");
+        lfd = -1;
+        return;
+    }
 }
 
 int main(int argc, char *argv[]){
@@ -92,12 +101,12 @@ int main(int argc, char *argv[]){
     threadPool pool(3);
 
     // 创建epoll句柄
-    int efd = epoll_create(OPEN_MAX + 1);
+    efd = epoll_create(OPEN_MAX + 1);
     if(efd == -1) cout << "epoll create error" << endl;
     struct epoll_event eps[OPEN_MAX];
 
-    // 创建lfd
-    int lfd = init_lfd(efd);
+    // 创建并初始化lfd
+    init_lfd();
     if(lfd == -1) cout << "lfd init error" << endl;
 
     // cout << "lfd: " << lfd << endl;
@@ -105,30 +114,31 @@ int main(int argc, char *argv[]){
     while(true){
         // 等待所监控文件描述符上有事件的产生
         // cout << "waiting" << endl;
-        int nready = epoll_wait(efd, eps, OPEN_MAX, -1);
+        int nready = epoll_wait(efd, eps, OPEN_MAX, 10000);
         // cout << "epoll wait return, nready is : " << nready << endl;
+
+        // int mapsize = fd2UniRequest::getMapSize();
+        // printf("main, hash map size is: %d\n", mapsize);
 
         for(int i=0; i<nready; ++i){
             // 暂时只监听读事件，虽然不会出现写事件，但是以防万一异常
             if(!(eps[i].events & EPOLLIN)) continue;
-            uniRequest * request = static_cast<uniRequest*>(eps[i].data.ptr);
-            printf("sever, set_CHECK_STATE_REQUESTLINE, req point is %p\n", request);
+            SP_ReqData request = fd2UniRequest::getUniRequest(eps[i].data.fd);
+            // printf("sever, set_CHECK_STATE_REQUESTLINE, req point is %p\n", request);
+            if(!(request)) printf("what?!\n");
             request->set_CHECK_STATE_REQUESTLINE();
-            printf("submit job to thread pool\n");
-            std::future<int> ret = pool.submit(handle_request, static_cast<void *>(eps[i].data.ptr));
-            printf("job submited\n");
+            // printf("submit job to thread pool\n");
+            std::future<int> ret = pool.submit(handle_request, request);
+            // printf("job submited\n");
         }
         // std::this_thread::sleep_for(std::chrono::seconds(2));
-        printf("main, start to handle_expired_event()\n");
+        // printf("main, start to handle_expired_event()\n");
         timerManag.handle_expired_event();
-        printf("main, ebd of handle_expired_event()\n");
+        // printf("main, ebd of handle_expired_event()\n");
     }
     
     close(lfd);
     close(efd);
-
-    printf("main, free\n");
-    delete uniRequestLfd;
 
     return 0;
 }
