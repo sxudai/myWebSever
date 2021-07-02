@@ -3,7 +3,7 @@
 #define BUFFER_SIZE 4096
 
 // 用于非阻塞返回-1时多尝试几次
-#define TRY_READ 1000;
+#define TRY_READ 10000;
 
 #define SERV_PORT 8000
 #define OPEN_MAX 65535
