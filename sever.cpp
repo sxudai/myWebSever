@@ -21,6 +21,8 @@
 #include "request.h"
 #include "threadPool.hpp"
 #include "fd2UniRequest.h"
+#include "logger.h"
+#include "asyncLogging.h"
 
 using std::cout;
 using std::endl;
@@ -33,6 +35,11 @@ typedef std::shared_ptr<uniRequest> SP_ReqData;
 typedef std::weak_ptr<uniRequest> WP_ReqData;
 typedef std::shared_ptr<TimerNode> SP_TimerNode;
 typedef std::weak_ptr<TimerNode> WP_TimerNode;
+
+// logger的设定
+size_t kRollSize = 500*1000*1000;
+asyncLogging* g_asyncLog = NULL;
+void asyncOutput(const char* msg, int len) { g_asyncLog->append(msg, len); }
 
 int handle_request(SP_ReqData request){
     printf("handle_request \n");
@@ -96,6 +103,13 @@ void init_lfd(){
 int main(int argc, char *argv[]){
     //修改sigpipe信号处理方式
     handle_for_sigpipe(SIGPIPE);
+
+    // 设置logger
+    char name[256] = { 0 };
+    strncpy(name, argv[0], sizeof(name) - 1);
+    asyncLogging log(basename(name), kRollSize);
+    g_asyncLog = &log;
+    logger::setOutput(asyncOutput);
 
     //初始化一个线程池
     threadPool pool(3);

@@ -27,6 +27,7 @@
 #include "request.h"
 #include "dsx.h"
 #include "singleton.h"
+#include "logger.h"
 
 extern TimerManager timerManag;
 
@@ -392,6 +393,7 @@ int uniRequest::handle_connect(){
 void uniRequest::http_request()
 {
 	cout << "m_method: " << m_method << endl;
+	LOG << "m_method: " << m_method;
 	if(m_method == "GET"){
 		printf("method get\n");
 		http_get();
@@ -422,6 +424,7 @@ void uniRequest::http_get(){
 
 		std::string Content_Type = m_path.substr(m_path.rfind('.'));
 		cout << Content_Type << endl;
+		LOG << Content_Type;
 		Content_Type = MimeType::getMime(Content_Type);
 
 		head += "Content-Type: " + Content_Type + "\r\n";
@@ -429,6 +432,7 @@ void uniRequest::http_get(){
 		head += "Content-Length: " + std::to_string(sbuf.st_size) + "\r\n";
 
 		cout<< "head is: " << head <<endl;
+		LOG<< "head is: " << head;
 		send_respond(200, "OK", head.c_str(), -1);
 		
 		// 回发 给客户端请求数据内容。
@@ -438,6 +442,7 @@ void uniRequest::http_get(){
 
 void uniRequest::http_post(){
 	cout << "m_method: post, receive content:" << m_body << endl;
+	LOG << "m_method: post, receive content:" << m_body;
 	send_respond(200, "OK", "Content-Type: text/plain", -1);
 }
 
@@ -496,6 +501,7 @@ int uniRequest::disconnect(){
 	printf("client[%d] closed connection\n", m_cfd);
 	if(m_error != dsx::OK) {
 		cout << "error: " << m_error << endl;
+		LOG << "error: " << m_error;
 		returnVal=-1;
 	}
 	close(m_cfd);
