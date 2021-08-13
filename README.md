@@ -12,7 +12,7 @@
 - gcc version: 7.5.0
 
 # 使用方法
-- code中使用的端口：8000<br>
+- code中使用的端口：80<br>
 - 编译服务端：make sever<br>
 - 客户端：
     >短链接可以直接使用webbench<br>
