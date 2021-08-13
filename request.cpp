@@ -481,7 +481,7 @@ void uniRequest::send_file(const char *file){
 			if(ret > 0) {
 				cout << "send " << ret << "bytes, success in cnt = " << cnt << '\n';
 			}  else {
-				printf("error, try again, ret is %d, %s\n", ret, strerror(errno)); 
+				printf("error, try again, n is %d, ret is %d, %s\n", n, ret, strerror(errno)); 
 			}
 		}while(ret == -1); 
 	}
