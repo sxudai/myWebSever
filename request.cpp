@@ -99,6 +99,7 @@ int uniRequest::acceptLink(){
 
 int uniRequest::linkTimer(SP_TimerNode _timer){
 	m_timer = _timer;
+	return 0;
 }
 
 void uniRequest::resetReq(){
