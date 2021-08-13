@@ -475,7 +475,7 @@ void uniRequest::send_file(const char *file){
 		int retryCnt = 0;
 		int hadSended = 0;
 		do{
-			std::this_thread::sleep_for(std::chrono::milliseconds(retryCnt*5));
+			// std::this_thread::sleep_for(std::chrono::milliseconds(retryCnt*5));
 			ret = send(m_cfd, buf+hadSended, n-hadSended, 0);
 			if(ret > 0){
 				retryCnt = 0;
