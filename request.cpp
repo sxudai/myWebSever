@@ -484,7 +484,7 @@ void uniRequest::send_file(const char *file){
 			} else {
 				printf("error, try again, n is %d, ret is %d, %s\n", n, ret, strerror(errno)); 
 				++retryCnt;
-				if(retryCnt == 6) break;
+				if(retryCnt == 1000) break;
 			}
 		}while(hadSended < n); 
 	}
