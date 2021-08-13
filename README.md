@@ -17,3 +17,7 @@
 - 客户端：
     >短链接可以直接使用webbench<br>
     >可以直接使用浏览请求资源<br>
+
+# 测试地址
+- [三大酱](http://www.sxudai.com/a.jpeg)
+- [推荐一首歌](http://www.sxudai.com/g.mp3)
