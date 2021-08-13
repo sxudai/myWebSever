@@ -19,5 +19,6 @@
     >可以直接使用浏览请求资源<br>
 
 # 测试地址
+- 测试地址使用的是master branch中的code
 - [三大酱](http://www.sxudai.com/a.jpeg)
 - [推荐一首歌](http://www.sxudai.com/g.mp3)
