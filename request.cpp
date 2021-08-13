@@ -462,7 +462,7 @@ void uniRequest::send_respond(int no, const char *disp, const char *head, int le
 }
 
 void uniRequest::send_file(const char *file){
-	int n = 0, ret;
+	int n = 0, ret=0;
 	char buf[4096] = {0};
 	
 	// 打开的服务器本地文件。  --- cfd 能访问客户端的 socket
@@ -472,18 +472,20 @@ void uniRequest::send_file(const char *file){
 	}
 	
 	while ((n = read(fd, buf, sizeof(buf))) > 0) {
-		int cnt = 0;
+		int retryCnt = 0;
+		int hadSended = 0;
 		do{
-			std::this_thread::sleep_for(std::chrono::milliseconds(cnt*5));
-			ret = send(m_cfd, buf, n, 0);
-			++cnt;
-			if(cnt == 6) break;
-			if(ret > 0) {
-				cout << "send " << ret << "bytes,  total: " << n << "bytes, success in cnt = " << cnt << '\n';
-			}  else {
+			std::this_thread::sleep_for(std::chrono::milliseconds(retryCnt*5));
+			ret = send(m_cfd, buf+hadSended, n-hadSended, 0);
+			if(ret > 0){
+				retryCnt = 0;
+				hadSended += ret;
+			} else {
 				printf("error, try again, n is %d, ret is %d, %s\n", n, ret, strerror(errno)); 
+				++retryCnt;
+				if(retryCnt == 6) break;
 			}
-		}while(ret == -1); 
+		}while(hadSended < n); 
 	}
 	close(fd);
 }
