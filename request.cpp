@@ -472,7 +472,7 @@ void uniRequest::send_file(const char *file){
 	}
 	
 	while ((n = read(fd, buf, sizeof(buf))) > 0) {
-		int cnt = 0;
+		int cnt = 1;
 		do{
 			std::this_thread::sleep_for(std::chrono::seconds(cnt));
 			ret = send(m_cfd, buf, n, 0);
