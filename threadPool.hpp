@@ -76,8 +76,8 @@ public:
                 if(tasks_.size() > 0) cv_.notify_all();
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 // 具体创建多少，销毁多少，要不要销毁交给函数去决定
-                std::cout << "manaer is checking and task nums is: " << tasks_.size() << std::endl;
-                getState();
+                // std::cout << "manaer is checking and task nums is: " << tasks_.size() << std::endl;
+                // getState();
                 if(busyThread * 2 < liveThread){
                     workerDestory();
                 } else if(tasks_.size() > liveThread){
