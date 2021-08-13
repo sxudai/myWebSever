@@ -472,7 +472,7 @@ void uniRequest::send_file(const char *file){
 	}
 	
 	while ((n = read(fd, buf, sizeof(buf))) > 0) {
-		int cnt = 1;
+		int cnt = 0;
 		do{
 			std::this_thread::sleep_for(std::chrono::milliseconds(cnt*5));
 			ret = send(m_cfd, buf, n, 0);
@@ -480,6 +480,8 @@ void uniRequest::send_file(const char *file){
 			if(cnt == 6) break;
 			if(ret > 0) {
 				cout << "send " << ret << "bytes, success in cnt = " << cnt << '\n';
+			}  else {
+				printf("error, try again, ret is %d, %s\n", ret, strerror(errno)); 
 			}
 		}while(ret == -1); 
 	}
