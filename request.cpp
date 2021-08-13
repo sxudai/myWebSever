@@ -34,7 +34,7 @@ extern TimerManager timerManag;
 using std::cout;
 using std::endl;
 
-uniRequest::uniRequest(int _lfd, int _cfd, int _efd): m_lfd(_lfd), m_cfd(_cfd), m_efd(_efd), m_timeout(3000), m_error(dsx::OK){memset( buffer, '\0', BUFFER_SIZE );}
+uniRequest::uniRequest(int _lfd, int _cfd, int _efd): m_lfd(_lfd), m_cfd(_cfd), m_efd(_efd), m_timeout(600000), m_error(dsx::OK){memset( buffer, '\0', BUFFER_SIZE );}
 uniRequest::uniRequest(int _lfd, int _cfd, int _efd, int _timeout): m_lfd(_lfd), m_cfd(_cfd), m_efd(_efd), m_timeout(_timeout), m_error(dsx::OK){memset( buffer, '\0', BUFFER_SIZE );}
 uniRequest::uniRequest(): m_lfd(0), m_cfd(0), m_efd(0), m_error(dsx::invalidDefaultConstructor){}
 uniRequest::~uniRequest(){
