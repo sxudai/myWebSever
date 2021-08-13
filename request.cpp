@@ -99,6 +99,7 @@ int uniRequest::acceptLink(){
 
 int uniRequest::linkTimer(SP_TimerNode _timer){
 	m_timer = _timer;
+	return 0;
 }
 
 void uniRequest::resetReq(){
@@ -461,7 +462,7 @@ void uniRequest::send_respond(int no, const char *disp, const char *head, int le
 }
 
 void uniRequest::send_file(const char *file){
-	int n = 0, ret;
+	int n = 0, ret=0;
 	char buf[4096] = {0};
 	
 	// 打开的服务器本地文件。  --- cfd 能访问客户端的 socket
@@ -471,18 +472,21 @@ void uniRequest::send_file(const char *file){
 	}
 	
 	while ((n = read(fd, buf, sizeof(buf))) > 0) {
-		int try_to_read = TRY_READ;
+		int retryCnt = 0;
+		int hadSended = 0;
 		do{
-			ret = send(m_cfd, buf, n, 0);
-			--try_to_read;
-			if(try_to_read < 0) break;
-			if(ret > 0) try_to_read = TRY_READ;
-		}while(ret == -1); //{
-		// 	printf("client closed: %d\n", m_cfd);
-		// 	// break;
-		// }
-		// }
-		// if (ret < 4096) printf("-----send ret: %d\n", ret);
+			std::this_thread::sleep_for(std::chrono::milliseconds(retryCnt*5));
+			ret = send(m_cfd, buf+hadSended, n-hadSended, 0);
+			if(ret > 0){
+				retryCnt = 0;
+				hadSended += ret;
+				printf("success send %d bytes, total send bytes %d, total %d bytes\n", ret, hadSended,  n); 
+			} else {
+				printf("error, try again, n is %d, ret is %d, %s\n", n, ret, strerror(errno)); 
+				++retryCnt;
+				if(retryCnt == 1000) break;
+			}
+		}while(hadSended < n); 
 	}
 	close(fd);
 }

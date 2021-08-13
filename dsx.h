@@ -5,7 +5,7 @@
 // 用于非阻塞返回-1时多尝试几次
 #define TRY_READ 10000;
 
-#define SERV_PORT 8000
+#define SERV_PORT 80
 #define OPEN_MAX 65535
 #define THREADNUM 5
 #define BUFLEN 4096
