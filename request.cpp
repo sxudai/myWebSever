@@ -480,7 +480,7 @@ void uniRequest::send_file(const char *file){
 			if(ret > 0){
 				retryCnt = 0;
 				hadSended += ret;
-				printf("success send %d bytes, total send bytes %d, total %d bytes\n", res, hadSended,  n); 
+				printf("success send %d bytes, total send bytes %d, total %d bytes\n", ret, hadSended,  n); 
 			} else {
 				printf("error, try again, n is %d, ret is %d, %s\n", n, ret, strerror(errno)); 
 				++retryCnt;
